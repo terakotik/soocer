@@ -117,7 +117,7 @@ const TipsyTumbleGame: React.FC = () => {
 
         Matter.Body.setMass(playerBody, config.bodyMass * scale);
 
-        const ball = Matter.Bodies.circle(800, 100, 30, {
+        const ball = Matter.Bodies.circle(800, 100, 15, {
             restitution: 0.8,
             friction: 0.01,
             render: {
@@ -135,13 +135,21 @@ const TipsyTumbleGame: React.FC = () => {
         playerRef.current = playerBody;
         
         const handleKeyDown = (event: KeyboardEvent) => {
-            if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'KeyW', 'KeyA', 'KeyS', 'KeyD'].includes(event.code)) {
+            if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyX'].includes(event.code)) {
                 event.preventDefault();
             }
 
             const player = playerRef.current;
             const groundBody = groundRef.current;
-            if (!player || !groundBody || keysDown.current[event.code]) return; 
+            if (keysDown.current[event.code]) return; 
+
+            if (event.code === 'KeyX' && ballRef.current) {
+                Matter.Body.setPosition(ballRef.current, { x: 800, y: 100 });
+                Matter.Body.setVelocity(ballRef.current, { x: 0, y: 0 });
+                Matter.Body.setAngularVelocity(ballRef.current, 0);
+            }
+
+            if (!player || !groundBody) return;
 
             const currentConfig = (window as any).__tipsyTumbleConfig || config;
             const { bodyMass } = currentConfig;
