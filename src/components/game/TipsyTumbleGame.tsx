@@ -17,21 +17,17 @@ import { Slider } from '@/components/ui/slider';
 import { Input } from '../ui/input';
 
 const initialPhysicsConfig = {
-    gravity: 1.2,
+    gravity: 1,
     constraintIterations: 2,
     positionIterations: 6,
     velocityIterations: 4,
-    headMass: 10,
-    headRestitution: 0.1,
-    headFriction: 0.1,
-    headFrictionAir: 0.01,
-    bodyMass: 1, 
+    bodyMass: 10,
     bodyRestitution: 0,
     bodyFriction: 0.5,
     bodyFrictionAir: 0.05,
     rightingStiffness: 0.1,
-    rightingDamping: 0.01,
-    kickForce: 0.1,
+    rightingDamping: 0.1,
+    kickForce: 0.05,
 };
 
 type PhysicsConfig = typeof initialPhysicsConfig;
@@ -43,7 +39,7 @@ const TipsyTumbleGame: React.FC = () => {
     const renderRef = useRef<Matter.Render | null>(null);
     
     const [config, setConfig] = useState<PhysicsConfig>(initialPhysicsConfig);
-    const playerRef = useRef<{ head: Matter.Body, body: Matter.Body, leg: Matter.Body, legConstraint: Matter.Constraint } | null>(null);
+    const playerRef = useRef<{ body: Matter.Body, leg: Matter.Body, legConstraint: Matter.Constraint } | null>(null);
 
     // Main game setup effect
     useEffect(() => {
@@ -71,17 +67,8 @@ const TipsyTumbleGame: React.FC = () => {
         const leftWall = Matter.Bodies.rectangle(-10, 300, 20, 620, { isStatic: true, render: { fillStyle: '#ADCDE0' } });
         const rightWall = Matter.Bodies.rectangle(810, 300, 20, 620, { isStatic: true, render: { fillStyle: '#ADCDE0' } });
         
-        const playerHead = Matter.Bodies.circle(200, 460, 20, { render: { fillStyle: '#29ABE2' } });
         const playerBody = Matter.Bodies.rectangle(200, 520, 40, 80, { chamfer: { radius: 10 }, render: { fillStyle: '#29ABE2' } });
         const playerLeg = Matter.Bodies.rectangle(200, 570, 20, 40, { render: { fillStyle: '#1E8449' } });
-
-        const headConstraint = Matter.Constraint.create({
-            bodyA: playerHead,
-            bodyB: playerBody,
-            stiffness: 0.1,
-            length: 50,
-            render: { visible: false }
-        });
         
         const legConstraint = Matter.Constraint.create({
             bodyA: playerBody,
@@ -93,16 +80,9 @@ const TipsyTumbleGame: React.FC = () => {
             render: { visible: false }
         });
 
-        const ball = Matter.Bodies.circle(600, 500, 30, {
-            restitution: 0.9,
-            friction: 0.01,
-            mass: 1,
-            render: { fillStyle: '#FFFFFF', strokeStyle: 'black', lineWidth: 2 }
-        });
-
-        Matter.Composite.add(world, [ground, leftWall, rightWall, playerBody, playerHead, headConstraint, playerLeg, legConstraint, ball]);
+        Matter.Composite.add(world, [ground, leftWall, rightWall, playerBody, playerLeg, legConstraint]);
         
-        playerRef.current = { head: playerHead, body: playerBody, leg: playerLeg, legConstraint: legConstraint };
+        playerRef.current = { body: playerBody, leg: playerLeg, legConstraint: legConstraint };
         
         const keys: { [key: string]: boolean } = {};
         const handleKeyDown = (event: KeyboardEvent) => {
@@ -118,7 +98,7 @@ const TipsyTumbleGame: React.FC = () => {
         Matter.Events.on(engine, 'beforeUpdate', () => {
             if (!playerRef.current) return;
 
-            const { head: playerHead, body: playerBody, leg: playerLeg } = playerRef.current;
+            const { body: playerBody, leg: playerLeg } = playerRef.current;
             
             const currentConfig = (window as any).__tipsyTumbleConfig;
             if (!currentConfig) return;
@@ -126,7 +106,7 @@ const TipsyTumbleGame: React.FC = () => {
             const { rightingStiffness, rightingDamping, bodyMass, kickForce } = currentConfig;
             
             const angle = playerBody.angle;
-            const limitedAngle = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, angle));
+            const limitedAngle = Math.max(-Math.PI, Math.min(Math.PI, angle));
             const restoringTorque = -rightingStiffness * limitedAngle - rightingDamping * playerBody.angularVelocity;
             Matter.Body.applyForce(playerBody, playerBody.position, { x: 0, y: -0.0001 * Math.abs(angle) });
             playerBody.torque += restoringTorque;
@@ -173,11 +153,7 @@ const TipsyTumbleGame: React.FC = () => {
         engine.velocityIterations = config.velocityIterations;
 
         if (playerRef.current) {
-            const { head, body, leg } = playerRef.current;
-            Matter.Body.setMass(head, config.headMass);
-            head.restitution = config.headRestitution;
-            head.friction = config.headFriction;
-            head.frictionAir = config.headFrictionAir;
+            const { body } = playerRef.current;
 
             Matter.Body.setMass(body, config.bodyMass);
             body.restitution = config.bodyRestitution;
@@ -247,24 +223,6 @@ const TipsyTumbleGame: React.FC = () => {
                         <div className="grid grid-cols-3 items-center gap-4">
                             <Label htmlFor="bodyRestitution">Отскок тела</Label>
                             <Slider id="bodyRestitution" min={0} max={1} step={0.01} value={[config.bodyRestitution]} onValueChange={([val]) => handleSliderChange('bodyRestitution', val)} className="col-span-2" />
-                        </div>
-
-                        <h4 className="font-semibold mt-4">Голова</h4>
-                        <div className="grid grid-cols-3 items-center gap-4">
-                            <Label htmlFor="headFriction">Трение головы</Label>
-                            <Slider id="headFriction" min={0} max={1} step={0.01} value={[config.headFriction]} onValueChange={([val]) => handleSliderChange('headFriction', val)} className="col-span-2" />
-                        </div>
-                        <div className="grid grid-cols-3 items-center gap-4">
-                            <Label htmlFor="headFrictionAir">Сопр. воздуха (голова)</Label>
-                            <Slider id="headFrictionAir" min={0} max={0.1} step={0.005} value={[config.headFrictionAir]} onValueChange={([val]) => handleSliderChange('headFrictionAir', val)} className="col-span-2" />
-                        </div>
-                        <div className="grid grid-cols-3 items-center gap-4">
-                            <Label htmlFor="headMass">Масса головы</Label>
-                             <Input id="headMass" type="number" value={config.headMass} onChange={(e) => handleInputChange('headMass', e.target.value)} className="col-span-2 h-8" />
-                        </div>
-                        <div className="grid grid-cols-3 items-center gap-4">
-                            <Label htmlFor="headRestitution">Отскок головы</Label>
-                            <Slider id="headRestitution" min={0} max={1} step={0.01} value={[config.headRestitution]} onValueChange={([val]) => handleSliderChange('headRestitution', val)} className="col-span-2" />
                         </div>
                     </div>
                 </DialogContent>
