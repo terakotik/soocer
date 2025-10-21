@@ -40,33 +40,34 @@ const TipsyTumbleGame: React.FC = () => {
         const leftWall = Matter.Bodies.rectangle(-10, 300, 20, 620, { isStatic: true, render: { fillStyle: '#ADCDE0' } });
         const rightWall = Matter.Bodies.rectangle(810, 300, 20, 620, { isStatic: true, render: { fillStyle: '#ADCDE0' } });
 
-        // Player
-        const playerTorso = Matter.Bodies.rectangle(200, 480, 40, 80, {
-            chamfer: { radius: 10 },
-            mass: 10,
-            restitution: 0.2,
-            frictionAir: 0.1, // Increased air friction to dampen movement
-            friction: 0.1,
+        // Player (Flipped)
+        const playerHead = Matter.Bodies.circle(200, 460, 20, {
+            mass: 5,
+            restitution: 0.5,
+            friction: 1.0,
+            frictionAir: 0.05, // Increased air friction
             render: { fillStyle: '#29ABE2' }
         });
 
-        const playerFoot = Matter.Bodies.circle(200, 540, 20, {
-            mass: 5, // Increased mass for stability
-            restitution: 0.5,
+        const playerBody = Matter.Bodies.rectangle(200, 520, 40, 80, {
+            chamfer: { radius: 10 },
+            mass: 10,
+            restitution: 0.2,
+            frictionAir: 0.2, // Increased air friction for stability
             friction: 1.0, // Increased friction
-            frictionAir: 0.01,
             render: { fillStyle: '#29ABE2' }
         });
 
         const playerConstraint = Matter.Constraint.create({
-            bodyA: playerTorso,
-            pointA: { x: 0, y: 40 },
-            bodyB: playerFoot,
-            pointB: { x: 0, y: 0 },
+            bodyA: playerHead,
+            pointA: { x: 0, y: 0 },
+            bodyB: playerBody,
+            pointB: { x: 0, y: -40 },
             stiffness: 0.1,
             length: 10,
             render: { visible: false }
         });
+
 
         // Ball
         const ball = Matter.Bodies.circle(600, 500, 30, {
@@ -76,7 +77,7 @@ const TipsyTumbleGame: React.FC = () => {
             render: { fillStyle: '#FFFFFF', strokeStyle: 'black', lineWidth: 2 }
         });
 
-        Matter.Composite.add(world, [ground, leftWall, rightWall, playerTorso, playerFoot, playerConstraint, ball]);
+        Matter.Composite.add(world, [ground, leftWall, rightWall, playerBody, playerHead, playerConstraint, ball]);
         
         // Let the world settle, then turn gravity back on
         setTimeout(() => {
@@ -98,23 +99,23 @@ const TipsyTumbleGame: React.FC = () => {
         // Game Loop
         Matter.Events.on(engine, 'beforeUpdate', () => {
             // Stronger Self-righting torque
-            const k = 0.5; // Stiffness
-            const d = 0.2; // Damping
-            const restoringTorque = -k * playerTorso.angle - d * playerTorso.angularVelocity;
-            Matter.Body.setAngularVelocity(playerTorso, playerTorso.angularVelocity + restoringTorque);
+            const k = 1.0; // Stiffness
+            const d = 0.5; // Damping
+            const restoringTorque = -k * playerBody.angle - d * playerBody.angularVelocity;
+            Matter.Body.setAngularVelocity(playerBody, playerBody.angularVelocity + restoringTorque);
 
 
             // Player movement
             if (keys['ArrowLeft'] || keys['KeyA']) {
-                Matter.Body.applyForce(playerFoot, playerFoot.position, { x: -0.025, y: 0 });
+                Matter.Body.applyForce(playerBody, playerBody.position, { x: -0.05, y: 0 });
             }
             if (keys['ArrowRight'] || keys['KeyD']) {
-                Matter.Body.applyForce(playerFoot, playerFoot.position, { x: 0.025, y: 0 });
+                Matter.Body.applyForce(playerBody, playerBody.position, { x: 0.05, y: 0 });
             }
             if (keys['ArrowUp'] || keys['KeyW'] || keys['Space']) {
-                const isGrounded = Matter.Query.collides(playerFoot, [ground]).length > 0;
+                const isGrounded = Matter.Query.collides(playerBody, [ground]).length > 0;
                 if(isGrounded) {
-                    Matter.Body.applyForce(playerFoot, playerFoot.position, { x: 0, y: -0.4 });
+                    Matter.Body.applyForce(playerBody, playerBody.position, { x: 0, y: -0.5 });
                 }
             }
         });
@@ -123,13 +124,13 @@ const TipsyTumbleGame: React.FC = () => {
         Matter.Events.on(engine, 'collisionStart', (event) => {
             event.pairs.forEach(pair => {
                 const { bodyA, bodyB } = pair;
-                const isFootAndBall = (bodyA === playerFoot && bodyB === ball) || (bodyA === ball && bodyB === playerFoot);
+                const isFootAndBall = (bodyA === playerBody && bodyB === ball) || (bodyA === ball && bodyB === playerBody);
 
                 if (isFootAndBall) {
-                    const kickDirection = playerTorso.position.x < ball.position.x ? 1 : -1;
+                    const kickDirection = playerHead.position.x < ball.position.x ? 1 : -1;
                     const tumbleTorque = kickDirection * 0.8;
-                    Matter.Body.setAngularVelocity(playerTorso, playerTorso.angularVelocity + tumbleTorque);
-                    Matter.Body.applyForce(playerTorso, playerTorso.position, {x: -kickDirection * 0.05, y:-0.1});
+                    Matter.Body.setAngularVelocity(playerBody, playerBody.angularVelocity + tumbleTorque);
+                    Matter.Body.applyForce(playerBody, playerBody.position, {x: -kickDirection * 0.05, y:-0.1});
                 }
             });
         });
