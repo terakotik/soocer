@@ -4,17 +4,19 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Matter from 'matter-js';
 import { Button } from '@/components/ui/button';
-import { Settings } from 'lucide-react';
+import { Settings, Save } from 'lucide-react';
 import {
     Dialog,
     DialogContent,
     DialogHeader,
     DialogTitle,
     DialogTrigger,
+    DialogFooter,
 } from "@/components/ui/dialog";
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Input } from '../ui/input';
+import { useToast } from '@/hooks/use-toast';
 
 const initialPhysicsConfig = {
     gravity: 1,
@@ -28,9 +30,12 @@ const initialPhysicsConfig = {
     rightingStiffness: 0.2,
     rightingDamping: 0.1,
     kickForce: 0,
+    ballMass: 1,
 };
 
 type PhysicsConfig = typeof initialPhysicsConfig;
+
+const CONFIG_STORAGE_KEY = 'tipsyTumbleConfig';
 
 const TipsyTumbleGame: React.FC = () => {
     const sceneRef = useRef<HTMLDivElement>(null);
@@ -38,11 +43,24 @@ const TipsyTumbleGame: React.FC = () => {
     const runnerRef = useRef(Matter.Runner.create());
     const renderRef = useRef<Matter.Render | null>(null);
     
-    const [config, setConfig] = useState<PhysicsConfig>(initialPhysicsConfig);
+    const [config, setConfig] = useState<PhysicsConfig>(() => {
+        if (typeof window === 'undefined') {
+            return initialPhysicsConfig;
+        }
+        const savedConfig = localStorage.getItem(CONFIG_STORAGE_KEY);
+        try {
+            return savedConfig ? { ...initialPhysicsConfig, ...JSON.parse(savedConfig) } : initialPhysicsConfig;
+        } catch (e) {
+            return initialPhysicsConfig;
+        }
+    });
+    
     const playerRef = useRef<Matter.Body | null>(null);
+    const ballRef = useRef<Matter.Body | null>(null);
     const keysDown = useRef<{ [key: string]: boolean }>({});
     const canJump = useRef(true);
     const groundRef = useRef<Matter.Body | null>(null);
+    const { toast } = useToast();
 
     // Main game setup effect
     useEffect(() => {
@@ -102,13 +120,14 @@ const TipsyTumbleGame: React.FC = () => {
         const ball = Matter.Bodies.circle(800, 100, 30, {
             restitution: 0.8,
             friction: 0.01,
-            density: 0.01,
             render: {
                 fillStyle: '#FFFFFF',
                 strokeStyle: '#000000',
                 lineWidth: 2,
             }
         });
+        Matter.Body.setMass(ball, config.ballMass);
+        ballRef.current = ball;
 
 
         Matter.Composite.add(world, [ground, leftWall, rightWall, ceiling, playerBody, ball]);
@@ -126,12 +145,11 @@ const TipsyTumbleGame: React.FC = () => {
 
             const currentConfig = (window as any).__tipsyTumbleConfig || config;
             const { bodyMass } = currentConfig;
-            const isGrounded = Matter.Query.collides(player, [groundBody]).length > 0;
             
             const hopForce = 0.01 * bodyMass * scale; 
-            const verticalHopForce = 0.02 * bodyMass * scale;
+            const verticalHopForce = 0.00;
 
-            if (isGrounded) {
+            if (Matter.Query.collides(player, [groundBody]).length > 0) {
                 if (event.code === 'ArrowLeft' || event.code === 'KeyA') {
                     Matter.Body.applyForce(player, player.position, { x: -hopForce, y: -verticalHopForce });
                 }
@@ -220,6 +238,10 @@ const TipsyTumbleGame: React.FC = () => {
             playerBody.friction = config.bodyFriction;
             playerBody.frictionAir = config.bodyFrictionAir;
         }
+
+        if (ballRef.current) {
+            Matter.Body.setMass(ballRef.current, config.ballMass);
+        }
     }, [config]);
 
 
@@ -232,6 +254,14 @@ const TipsyTumbleGame: React.FC = () => {
         if (!isNaN(numValue)) {
             setConfig(prev => ({ ...prev, [key]: numValue }));
         }
+    };
+    
+    const saveConfig = () => {
+        localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(config));
+        toast({
+            title: "Configuration Saved",
+            description: "Your physics settings have been saved locally.",
+        });
     };
 
 
@@ -247,40 +277,49 @@ const TipsyTumbleGame: React.FC = () => {
                 </DialogTrigger>
                 <DialogContent className="max-w-md">
                     <DialogHeader>
-                        <DialogTitle>Настройки физики</DialogTitle>
+                        <DialogTitle>Physics Settings</DialogTitle>
                     </DialogHeader>
                     <div className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto pr-4">
                         <div className="grid grid-cols-3 items-center gap-4">
-                            <Label htmlFor="gravity">Гравитация</Label>
+                            <Label htmlFor="gravity">Gravity</Label>
                             <Slider id="gravity" min={0} max={2} step={0.1} value={[config.gravity]} onValueChange={([val]) => handleSliderChange('gravity', val)} className="col-span-2" />
                         </div>
                          <div className="grid grid-cols-3 items-center gap-4">
-                            <Label htmlFor="rightingStiffness">Жесткость выпрямления</Label>
+                            <Label htmlFor="rightingStiffness">Righting Stiffness</Label>
                              <Slider id="rightingStiffness" min={0} max={0.5} step={0.01} value={[config.rightingStiffness]} onValueChange={([val]) => handleSliderChange('rightingStiffness', val)} className="col-span-2" />
                         </div>
                          <div className="grid grid-cols-3 items-center gap-4">
-                            <Label htmlFor="rightingDamping">Демпфирование</Label>
+                            <Label htmlFor="rightingDamping">Righting Damping</Label>
                             <Slider id="rightingDamping" min={0} max={1} step={0.01} value={[config.rightingDamping]} onValueChange={([val]) => handleSliderChange('rightingDamping', val)} className="col-span-2" />
                         </div>
                         
-                        <h4 className="font-semibold mt-4">Тело</h4>
+                        <h4 className="font-semibold mt-4">Body</h4>
                         <div className="grid grid-cols-3 items-center gap-4">
-                            <Label htmlFor="bodyFriction">Трение тела</Label>
+                            <Label htmlFor="bodyFriction">Body Friction</Label>
                             <Slider id="bodyFriction" min={0} max={1} step={0.05} value={[config.bodyFriction]} onValueChange={([val]) => handleSliderChange('bodyFriction', val)} className="col-span-2" />
                         </div>
                         <div className="grid grid-cols-3 items-center gap-4">
-                            <Label htmlFor="bodyFrictionAir">Сопр. воздуха (тело)</Label>
+                            <Label htmlFor="bodyFrictionAir">Body Air Friction</Label>
                             <Slider id="bodyFrictionAir" min={0} max={0.2} step={0.01} value={[config.bodyFrictionAir]} onValueChange={([val]) => handleSliderChange('bodyFrictionAir', val)} className="col-span-2" />
                         </div>
                         <div className="grid grid-cols-3 items-center gap-4">
-                            <Label htmlFor="bodyMass">Масса тела</Label>
+                            <Label htmlFor="bodyMass">Body Mass</Label>
                             <Input id="bodyMass" type="number" value={config.bodyMass} onChange={(e) => handleInputChange('bodyMass', e.target.value)} className="col-span-2 h-8" />
                         </div>
                         <div className="grid grid-cols-3 items-center gap-4">
-                            <Label htmlFor="bodyRestitution">Отскок тела</Label>
+                            <Label htmlFor="bodyRestitution">Body Restitution</Label>
                             <Slider id="bodyRestitution" min={0} max={1} step={0.01} value={[config.bodyRestitution]} onValueChange={([val]) => handleSliderChange('bodyRestitution', val)} className="col-span-2" />
                         </div>
+
+                        <h4 className="font-semibold mt-4">Ball</h4>
+                        <div className="grid grid-cols-3 items-center gap-4">
+                            <Label htmlFor="ballMass">Ball Mass</Label>
+                            <Input id="ballMass" type="number" value={config.ballMass} onChange={(e) => handleInputChange('ballMass', e.target.value)} className="col-span-2 h-8" />
+                        </div>
                     </div>
+                    <DialogFooter>
+                        <Button onClick={saveConfig}><Save className="mr-2 h-4 w-4" /> Save Config</Button>
+                    </DialogFooter>
                 </DialogContent>
             </Dialog>
         </div>
