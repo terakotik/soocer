@@ -20,16 +20,16 @@ const initialPhysicsConfig = {
     constraintIterations: 4,
     positionIterations: 12,
     velocityIterations: 8,
-    headMass: 5,
+    headMass: 6.5,
     headRestitution: 0.1,
-    headFriction: 0.1,
-    headFrictionAir: 0.05,
-    bodyMass: 10,
-    bodyRestitution: 0.1,
-    bodyFriction: 1.0,
-    bodyFrictionAir: 0.2,
-    rightingStiffness: 1.0,
-    rightingDamping: 0.5
+    headFriction: 0.05,
+    headFrictionAir: 0.02,
+    bodyMass: 73.5,
+    bodyRestitution: 0.01,
+    bodyFriction: 0.5,
+    bodyFrictionAir: 0.02,
+    rightingStiffness: 0.2,
+    rightingDamping: 0.1
 };
 
 type PhysicsConfig = typeof initialPhysicsConfig;
@@ -111,12 +111,12 @@ const TipsyTumbleGame: React.FC = () => {
             const currentConfig = (window as any).__tipsyTumbleConfig;
             if (!currentConfig) return;
 
-            const { rightingStiffness, rightingDamping } = currentConfig;
+            const { rightingStiffness, rightingDamping, bodyMass } = currentConfig;
             
             if (!keys['ArrowLeft'] && !keys['KeyA'] && !keys['ArrowRight'] && !keys['KeyD']) {
                 const angle = playerBody.angle;
                 const restoringTorque = -rightingStiffness * angle - rightingDamping * playerBody.angularVelocity;
-                Matter.Body.applyForce(playerBody, playerBody.position, { x: 0, y: -0.001 * Math.abs(angle) });
+                Matter.Body.applyForce(playerBody, playerBody.position, { x: 0, y: -0.0001 * Math.abs(angle) });
                 Matter.Body.setAngularVelocity(playerBody, playerBody.angularVelocity + restoringTorque);
             }
 
@@ -129,7 +129,7 @@ const TipsyTumbleGame: React.FC = () => {
             if (keys['ArrowUp'] || keys['KeyW'] || keys['Space']) {
                 const isGrounded = Matter.Query.collides(playerBody, [ground]).length > 0;
                 if (isGrounded) {
-                    Matter.Body.applyForce(playerBody, playerBody.position, { x: 0, y: -0.5 });
+                    Matter.Body.applyForce(playerBody, playerBody.position, { x: 0, y: -(bodyMass * 0.1) });
                 }
             }
         });
