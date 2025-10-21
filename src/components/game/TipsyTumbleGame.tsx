@@ -21,16 +21,17 @@ const initialPhysicsConfig = {
     constraintIterations: 2,
     positionIterations: 6,
     velocityIterations: 4,
-    headMass: 1, 
+    headMass: 10,
     headRestitution: 0.1,
     headFriction: 0.1,
     headFrictionAir: 0.01,
-    bodyMass: 10,
-    bodyRestitution: 0.05, // Lower bounce from ground
+    bodyMass: 1, 
+    bodyRestitution: 0,
     bodyFriction: 0.5,
-    bodyFrictionAir: 0.02,
-    rightingStiffness: 0.5, // Very strong self-righting
-    rightingDamping: 0.2,
+    bodyFrictionAir: 0.05,
+    rightingStiffness: 0.1,
+    rightingDamping: 0.01,
+    kickForce: 0.1,
 };
 
 type PhysicsConfig = typeof initialPhysicsConfig;
@@ -42,7 +43,7 @@ const TipsyTumbleGame: React.FC = () => {
     const renderRef = useRef<Matter.Render | null>(null);
     
     const [config, setConfig] = useState<PhysicsConfig>(initialPhysicsConfig);
-    const playerRef = useRef<{ head: Matter.Body, body: Matter.Body } | null>(null);
+    const playerRef = useRef<{ head: Matter.Body, body: Matter.Body, leg: Matter.Body, legConstraint: Matter.Constraint } | null>(null);
 
     // Main game setup effect
     useEffect(() => {
@@ -72,12 +73,23 @@ const TipsyTumbleGame: React.FC = () => {
         
         const playerHead = Matter.Bodies.circle(200, 460, 20, { render: { fillStyle: '#29ABE2' } });
         const playerBody = Matter.Bodies.rectangle(200, 520, 40, 80, { chamfer: { radius: 10 }, render: { fillStyle: '#29ABE2' } });
+        const playerLeg = Matter.Bodies.rectangle(200, 570, 20, 40, { render: { fillStyle: '#1E8449' } });
 
-        const playerConstraint = Matter.Constraint.create({
+        const headConstraint = Matter.Constraint.create({
             bodyA: playerHead,
             bodyB: playerBody,
             stiffness: 0.1,
             length: 50,
+            render: { visible: false }
+        });
+        
+        const legConstraint = Matter.Constraint.create({
+            bodyA: playerBody,
+            bodyB: playerLeg,
+            pointA: { x: 0, y: 40 },
+            pointB: { x: 0, y: -20 },
+            stiffness: 0.8,
+            length: 0,
             render: { visible: false }
         });
 
@@ -88,9 +100,9 @@ const TipsyTumbleGame: React.FC = () => {
             render: { fillStyle: '#FFFFFF', strokeStyle: 'black', lineWidth: 2 }
         });
 
-        Matter.Composite.add(world, [ground, leftWall, rightWall, playerBody, playerHead, playerConstraint, ball]);
+        Matter.Composite.add(world, [ground, leftWall, rightWall, playerBody, playerHead, headConstraint, playerLeg, legConstraint, ball]);
         
-        playerRef.current = { head: playerHead, body: playerBody };
+        playerRef.current = { head: playerHead, body: playerBody, leg: playerLeg, legConstraint: legConstraint };
         
         const keys: { [key: string]: boolean } = {};
         const handleKeyDown = (event: KeyboardEvent) => {
@@ -103,27 +115,23 @@ const TipsyTumbleGame: React.FC = () => {
         window.addEventListener('keydown', handleKeyDown);
         window.addEventListener('keyup', handleKeyUp);
 
-        let jumpCooldown = false;
-
         Matter.Events.on(engine, 'beforeUpdate', () => {
             if (!playerRef.current) return;
 
-            const { head: playerHead, body: playerBody } = playerRef.current;
+            const { head: playerHead, body: playerBody, leg: playerLeg } = playerRef.current;
             
             const currentConfig = (window as any).__tipsyTumbleConfig;
             if (!currentConfig) return;
             
-            const { rightingStiffness, rightingDamping, bodyMass } = currentConfig;
+            const { rightingStiffness, rightingDamping, bodyMass, kickForce } = currentConfig;
             
-            // Always apply self-righting torque
             const angle = playerBody.angle;
-            // Limit angle to prevent flipping over completely, cap at 90 degrees (PI/2 radians)
             const limitedAngle = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, angle));
             const restoringTorque = -rightingStiffness * limitedAngle - rightingDamping * playerBody.angularVelocity;
             Matter.Body.applyForce(playerBody, playerBody.position, { x: 0, y: -0.0001 * Math.abs(angle) });
             playerBody.torque += restoringTorque;
 
-            const moveForce = 0.01 * bodyMass; // Increased move force
+            const moveForce = 0.01 * bodyMass;
 
             if (keys['ArrowLeft'] || keys['KeyA']) {
                  Matter.Body.applyForce(playerBody, playerBody.position, { x: -moveForce, y: 0 });
@@ -131,14 +139,9 @@ const TipsyTumbleGame: React.FC = () => {
             if (keys['ArrowRight'] || keys['KeyD']) {
                 Matter.Body.applyForce(playerBody, playerBody.position, { x: moveForce, y: 0 });
             }
-            if ((keys['ArrowUp'] || keys['KeyW'] || keys['Space']) && !jumpCooldown) {
-                const isGrounded = Matter.Query.collides(playerBody, [ground]).length > 0;
-                if (isGrounded) {
-                    // Reduced jump force
-                    Matter.Body.applyForce(playerBody, playerBody.position, { x: 0, y: -(bodyMass * 0.1) });
-                    jumpCooldown = true;
-                    setTimeout(() => { jumpCooldown = false; }, 500); // 500ms cooldown
-                }
+            if ((keys['ArrowUp'] || keys['KeyW'] || keys['Space'])) {
+                Matter.Body.applyForce(playerLeg, playerLeg.position, {x: kickForce, y: -kickForce});
+                 Matter.Body.applyForce(playerBody, playerBody.position, {x: 0, y: -0.05 * bodyMass});
             }
         });
 
@@ -152,7 +155,9 @@ const TipsyTumbleGame: React.FC = () => {
             Matter.Runner.stop(runner);
             Matter.Composite.clear(world, false);
             Matter.Engine.clear(engine);
-            render.canvas.remove();
+            if(render.canvas) {
+              render.canvas.remove();
+            }
             renderRef.current = null;
         };
     }, []);
@@ -168,7 +173,7 @@ const TipsyTumbleGame: React.FC = () => {
         engine.velocityIterations = config.velocityIterations;
 
         if (playerRef.current) {
-            const { head, body } = playerRef.current;
+            const { head, body, leg } = playerRef.current;
             Matter.Body.setMass(head, config.headMass);
             head.restitution = config.headRestitution;
             head.friction = config.headFriction;
@@ -221,6 +226,11 @@ const TipsyTumbleGame: React.FC = () => {
                             <Label htmlFor="rightingDamping">Демпфирование</Label>
                             <Slider id="rightingDamping" min={0} max={1} step={0.01} value={[config.rightingDamping]} onValueChange={([val]) => handleSliderChange('rightingDamping', val)} className="col-span-2" />
                         </div>
+                        <div className="grid grid-cols-3 items-center gap-4">
+                            <Label htmlFor="kickForce">Сила удара</Label>
+                            <Slider id="kickForce" min={0} max={0.5} step={0.01} value={[config.kickForce]} onValueChange={([val]) => handleSliderChange('kickForce', val)} className="col-span-2" />
+                        </div>
+
                         <h4 className="font-semibold mt-4">Тело</h4>
                         <div className="grid grid-cols-3 items-center gap-4">
                             <Label htmlFor="bodyFriction">Трение тела</Label>
