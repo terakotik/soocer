@@ -22,7 +22,7 @@ const initialPhysicsConfig = {
     positionIterations: 6,
     velocityIterations: 4,
     bodyMass: 10,
-    bodyRestitution: 0,
+    bodyRestitution: 0.1,
     bodyFriction: 0.5,
     bodyFrictionAir: 0.1,
     rightingStiffness: 0.4,
@@ -40,6 +40,8 @@ const TipsyTumbleGame: React.FC = () => {
     
     const [config, setConfig] = useState<PhysicsConfig>(initialPhysicsConfig);
     const playerRef = useRef<{ body: Matter.Body, leg: Matter.Body, legConstraint: Matter.Constraint } | null>(null);
+    const keysDown = useRef<{ [key: string]: boolean }>({});
+    const canJump = useRef(true);
 
     // Main game setup effect
     useEffect(() => {
@@ -66,8 +68,9 @@ const TipsyTumbleGame: React.FC = () => {
         const ground = Matter.Bodies.rectangle(400, 610, 820, 60, { isStatic: true, render: { fillStyle: '#90EE90' } });
         const leftWall = Matter.Bodies.rectangle(-10, 300, 20, 620, { isStatic: true, render: { fillStyle: '#ADCDE0' } });
         const rightWall = Matter.Bodies.rectangle(810, 300, 20, 620, { isStatic: true, render: { fillStyle: '#ADCDE0' } });
+        const ceiling = Matter.Bodies.rectangle(400, -10, 820, 20, { isStatic: true, render: { fillStyle: '#ADCDE0' } });
         
-        const playerBody = Matter.Bodies.rectangle(200, 520, 40, 80, { chamfer: { radius: 10 }, render: { fillStyle: '#29ABE2' } });
+        const playerBody = Matter.Bodies.rectangle(200, 560, 40, 80, { chamfer: { radius: 10 }, render: { fillStyle: '#29ABE2' } });
         const playerLeg = Matter.Bodies.rectangle(200, 570, 40, 20, { render: { fillStyle: '#1E8449' } });
         
         const legConstraint = Matter.Constraint.create({
@@ -80,18 +83,22 @@ const TipsyTumbleGame: React.FC = () => {
             render: { visible: false }
         });
 
-        Matter.Composite.add(world, [ground, leftWall, rightWall, playerBody, playerLeg, legConstraint]);
+        Matter.Composite.add(world, [ground, leftWall, rightWall, ceiling, playerBody, playerLeg, legConstraint]);
         
         playerRef.current = { body: playerBody, leg: playerLeg, legConstraint: legConstraint };
         
-        const keys: { [key: string]: boolean } = {};
         const handleKeyDown = (event: KeyboardEvent) => {
             if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'KeyW', 'KeyA', 'KeyS', 'KeyD'].includes(event.code)) {
                 event.preventDefault();
             }
-            keys[event.code] = true;
+            keysDown.current[event.code] = true;
         };
-        const handleKeyUp = (event: KeyboardEvent) => { keys[event.code] = false; };
+        const handleKeyUp = (event: KeyboardEvent) => { 
+            keysDown.current[event.code] = false; 
+            if (['ArrowUp', 'KeyW', 'Space'].includes(event.code)) {
+                canJump.current = true;
+            }
+        };
         window.addEventListener('keydown', handleKeyDown);
         window.addEventListener('keyup', handleKeyUp);
 
@@ -113,17 +120,18 @@ const TipsyTumbleGame: React.FC = () => {
 
             const moveForce = 0.01 * bodyMass;
 
-            if (keys['ArrowLeft'] || keys['KeyA']) {
+            if (keysDown.current['ArrowLeft'] || keysDown.current['KeyA']) {
                  Matter.Body.applyForce(playerBody, playerBody.position, { x: -moveForce, y: 0 });
             }
-            if (keys['ArrowRight'] || keys['KeyD']) {
+            if (keysDown.current['ArrowRight'] || keysDown.current['KeyD']) {
                 Matter.Body.applyForce(playerBody, playerBody.position, { x: moveForce, y: 0 });
             }
-            if ((keys['ArrowUp'] || keys['KeyW'] || keys['Space'])) {
-                // Apply a vertical force for a short jump
-                Matter.Body.applyForce(playerBody, playerBody.position, {x: 0, y: -0.05 * bodyMass});
-                // Apply a small torque to the leg for the "kick" effect
-                playerLeg.torque = kickForce * 10;
+            if ((keysDown.current['ArrowUp'] || keysDown.current['KeyW'] || keysDown.current['Space'])) {
+                if (canJump.current && Math.abs(playerBody.velocity.y) < 0.1) {
+                    Matter.Body.applyForce(playerBody, playerBody.position, {x: 0, y: -0.2 * bodyMass});
+                    playerLeg.torque = kickForce * 10;
+                    canJump.current = false;
+                }
             }
         });
 
@@ -155,7 +163,7 @@ const TipsyTumbleGame: React.FC = () => {
         engine.velocityIterations = config.velocityIterations;
 
         if (playerRef.current) {
-            const { body } = playerRef.current;
+            const { body, leg } = playerRef.current;
 
             Matter.Body.setMass(body, config.bodyMass);
             body.restitution = config.bodyRestitution;
