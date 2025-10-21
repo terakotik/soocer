@@ -111,11 +111,13 @@ const TipsyTumbleGame: React.FC = () => {
             const currentConfig = (window as any).__tipsyTumbleConfig;
             if (!currentConfig) return;
 
-            const { rightingStiffness, rightingDamping, bodyMass } = currentConfig;
+            const { rightingStiffness, rightingDamping, bodyMass, bodyRestitution } = currentConfig;
             
             // Always apply self-righting torque
             const angle = playerBody.angle;
-            const restoringTorque = -rightingStiffness * angle - rightingDamping * playerBody.angularVelocity;
+            // Link bodyRestitution to the swaying effect
+            const restitutionEffect = 1 + bodyRestitution * 5; 
+            const restoringTorque = -rightingStiffness * angle * restitutionEffect - rightingDamping * playerBody.angularVelocity;
             Matter.Body.applyForce(playerBody, playerBody.position, { x: 0, y: -0.0001 * Math.abs(angle) });
             Matter.Body.setAngularVelocity(playerBody, playerBody.angularVelocity + restoringTorque);
 
