@@ -18,19 +18,19 @@ import { Input } from '../ui/input';
 
 const initialPhysicsConfig = {
     gravity: 1,
-    constraintIterations: 2, // Lower for more "bendy" feel
+    constraintIterations: 2,
     positionIterations: 6,
     velocityIterations: 4,
-    headMass: 4, // Heavier head
-    headRestitution: 0.2,
+    headMass: 1, 
+    headRestitution: 0.5,
     headFriction: 0.1,
-    headFrictionAir: 0.02,
-    bodyMass: 2, // Lighter body
-    bodyRestitution: 0.1,
-    bodyFriction: 0.1,
-    bodyFrictionAir: 0.08, // More air friction for floppy movement
-    rightingStiffness: 0.015, // Low stiffness for wobbliness
-    rightingDamping: 0.2, // High damping for a "heavy" feel
+    headFrictionAir: 0.01,
+    bodyMass: 5, 
+    bodyRestitution: 0.2, // Bounce off the ground
+    bodyFriction: 0.5,
+    bodyFrictionAir: 0.02,
+    rightingStiffness: 0.3, // Strong self-righting
+    rightingDamping: 0.1,
 };
 
 type PhysicsConfig = typeof initialPhysicsConfig;
@@ -112,17 +112,16 @@ const TipsyTumbleGame: React.FC = () => {
             
             const currentConfig = (window as any).__tipsyTumbleConfig;
             if (!currentConfig) return;
-
-            const { rightingStiffness, rightingDamping, bodyMass, bodyRestitution } = currentConfig;
+            
+            const { rightingStiffness, rightingDamping, bodyMass } = currentConfig;
             
             // Always apply self-righting torque
             const angle = playerBody.angle;
-            const restitutionEffect = 1 + bodyRestitution * 5; 
-            const restoringTorque = -rightingStiffness * angle * restitutionEffect - rightingDamping * playerBody.angularVelocity;
+            const restoringTorque = -rightingStiffness * angle - rightingDamping * playerBody.angularVelocity;
             Matter.Body.applyForce(playerBody, playerBody.position, { x: 0, y: -0.0001 * Math.abs(angle) });
             playerBody.torque += restoringTorque;
 
-            const moveForce = 0.005 * bodyMass;
+            const moveForce = 0.01 * bodyMass;
 
             if (keys['ArrowLeft'] || keys['KeyA']) {
                  Matter.Body.applyForce(playerHead, playerHead.position, { x: -moveForce, y: 0 });
@@ -133,9 +132,7 @@ const TipsyTumbleGame: React.FC = () => {
             if ((keys['ArrowUp'] || keys['KeyW'] || keys['Space']) && !jumpCooldown) {
                 const isGrounded = Matter.Query.collides(playerBody, [ground]).length > 0;
                 if (isGrounded) {
-                    // Apply a "kick" force - up and a bit forward, plus torque
-                    Matter.Body.applyForce(playerBody, playerBody.position, { x: 0, y: -(bodyMass * 0.3) });
-                    playerBody.torque += 1.5; // Forward rotational force
+                    Matter.Body.applyForce(playerBody, playerBody.position, { x: 0, y: -(bodyMass * 0.15) });
                     jumpCooldown = true;
                     setTimeout(() => { jumpCooldown = false; }, 500); // 500ms cooldown
                 }
@@ -215,10 +212,10 @@ const TipsyTumbleGame: React.FC = () => {
                         </div>
                          <div className="grid grid-cols-3 items-center gap-4">
                             <Label htmlFor="rightingStiffness">Жесткость выпрямления</Label>
-                             <Slider id="rightingStiffness" min={0} max={0.2} step={0.005} value={[config.rightingStiffness]} onValueChange={([val]) => handleSliderChange('rightingStiffness', val)} className="col-span-2" />
+                             <Slider id="rightingStiffness" min={0} max={0.5} step={0.01} value={[config.rightingStiffness]} onValueChange={([val]) => handleSliderChange('rightingStiffness', val)} className="col-span-2" />
                         </div>
                          <div className="grid grid-cols-3 items-center gap-4">
-                            <Label htmlFor="rightingDamping">Сила покачивания</Label>
+                            <Label htmlFor="rightingDamping">Демпфирование</Label>
                             <Slider id="rightingDamping" min={0} max={1} step={0.01} value={[config.rightingDamping]} onValueChange={([val]) => handleSliderChange('rightingDamping', val)} className="col-span-2" />
                         </div>
                         <h4 className="font-semibold mt-4">Тело</h4>
@@ -264,3 +261,5 @@ const TipsyTumbleGame: React.FC = () => {
 };
 
 export default TipsyTumbleGame;
+
+    
