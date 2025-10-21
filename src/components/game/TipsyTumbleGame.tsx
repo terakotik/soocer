@@ -83,8 +83,8 @@ const TipsyTumbleGame: React.FC = () => {
         // Game Loop
         Matter.Events.on(engine, 'beforeUpdate', () => {
             // Self-righting torque
-            const k = 0.05; // Stiffness
-            const d = 0.02; // Damping
+            const k = 0.2; // Stiffness
+            const d = 0.1; // Damping
             const restoringTorque = -k * playerTorso.angle - d * playerTorso.angularVelocity;
             playerTorso.torque += restoringTorque;
 
