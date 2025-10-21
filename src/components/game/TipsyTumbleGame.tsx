@@ -94,15 +94,20 @@ const TipsyTumbleGame: React.FC = () => {
         const playerX = 200;
         const playerY = 600;
         
-        const bottom = Matter.Bodies.circle(playerX, playerY + (20 * scale), 25 * scale, { 
+        // This is the heavy, invisible weight. It's physically at the bottom.
+        const weight = Matter.Bodies.circle(playerX, playerY + (45 * scale), 25 * scale, { 
             density: 0.1, 
             friction: 0.5,
             restitution: config.bodyRestitution,
-            render: { fillStyle: '#1a1a1a' } 
+            render: { visible: false } // Make it invisible
         });
 
-        const topVertices = Matter.Vertices.fromPath(`0 ${20*scale} -${40*scale} ${20*scale} -${40*scale} -${10*scale} -${25*scale} -${60*scale} -${15*scale} -${100*scale} ${15*scale} -${100*scale} ${25*scale} -${60*scale} ${40*scale} -${10*scale} ${40*scale} ${20*scale}`);
-        const top = Matter.Bodies.fromVertices(playerX, playerY - (45 * scale), [topVertices], {
+        // These are the vertices for the visible red part.
+        // I've flipped them vertically by negating the Y coordinates.
+        const topVertices = Matter.Vertices.fromPath(`0 -${20*scale} -${40*scale} -${20*scale} -${40*scale} ${10*scale} -${25*scale} ${60*scale} -${15*scale} ${100*scale} ${15*scale} ${100*scale} ${25*scale} ${60*scale} ${40*scale} ${10*scale} ${40*scale} -${20*scale}`);
+        
+        // This is the visible red part. It's physically at the top but rendered at the bottom.
+        const visibleBody = Matter.Bodies.fromVertices(playerX, playerY, [topVertices], {
             density: 0.001,
             friction: 0.2,
             restitution: 0.1,
@@ -110,7 +115,9 @@ const TipsyTumbleGame: React.FC = () => {
         });
         
         const playerBody = Matter.Body.create({
-            parts: [bottom, top],
+            // The order matters for physics parts, but we combine them into one body.
+            // The heavy, invisible weight is still part of the body's physics calculation.
+            parts: [visibleBody, weight],
             frictionAir: config.bodyFrictionAir,
             friction: config.bodyFriction,
         });
@@ -245,10 +252,10 @@ const TipsyTumbleGame: React.FC = () => {
             const playerBody = playerRef.current;
             const scale = 0.8;
             Matter.Body.setMass(playerBody, config.bodyMass * scale);
-            // The first part of the body is the bottom circle
-            const bottomPart = playerBody.parts[1]; 
-            if (bottomPart) {
-                bottomPart.restitution = config.bodyRestitution;
+            // The heavy part is now the second part
+            const weightPart = playerBody.parts[2]; 
+            if (weightPart) {
+                weightPart.restitution = config.bodyRestitution;
             }
             playerBody.friction = config.bodyFriction;
             playerBody.frictionAir = config.bodyFrictionAir;
