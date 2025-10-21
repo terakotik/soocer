@@ -1,5 +1,3 @@
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Keyboard, MoveLeft, MoveRight, MoveUp } from 'lucide-react';
 import { Logo } from '@/components/icons/logo';
 import GameClient from "@/components/game/GameClient";
 
@@ -14,32 +12,8 @@ export default function Home() {
                 <p className="mt-2 text-lg text-muted-foreground">A silly physics game about a wobbly character.</p>
             </header>
 
-            <main className="flex flex-col lg:flex-row items-center justify-center gap-8 w-full max-w-6xl">
+            <main className="flex flex-col items-center justify-center gap-8 w-full">
                 <GameClient />
-                <Card className="w-full max-w-sm lg:max-w-xs shrink-0">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <Keyboard /> How to Play
-                        </CardTitle>
-                        <CardDescription>Use your keyboard to control the player.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                         <div className="flex items-center gap-4">
-                            <div className="flex gap-1">
-                                <div className="p-2 border rounded-md bg-card shadow-sm"><MoveLeft /></div>
-                                <div className="p-2 border rounded-md bg-card shadow-sm"><MoveRight /></div>
-                            </div>
-                            <span className="font-medium">Move Left & Right</span>
-                        </div>
-                        <div className="flex items-center gap-4">
-                           <div className="p-2 border rounded-md bg-card shadow-sm"><MoveUp /></div>
-                           <span className="font-medium">Jump & Kick</span>
-                        </div>
-                        <p className="text-sm text-muted-foreground pt-2">
-                            Try to hit the ball and watch the chaos unfold. Don't worry about falling, you'll get back up... eventually!
-                        </p>
-                    </CardContent>
-                </Card>
             </main>
 
             <footer className="mt-8 text-center text-sm text-muted-foreground">
