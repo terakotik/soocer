@@ -41,7 +41,7 @@ const TipsyTumbleGame: React.FC = () => {
     const renderRef = useRef<Matter.Render | null>(null);
     
     const [config, setConfig] = useState<PhysicsConfig>(initialPhysicsConfig);
-    const [player, setPlayer] = useState<{ head: Matter.Body, body: Matter.Body } | null>(null);
+    const playerRef = useRef<{ head: Matter.Body, body: Matter.Body } | null>(null);
 
     // Main game setup effect
     useEffect(() => {
@@ -89,7 +89,7 @@ const TipsyTumbleGame: React.FC = () => {
 
         Matter.Composite.add(world, [ground, leftWall, rightWall, playerBody, playerHead, playerConstraint, ball]);
         
-        setPlayer({ head: playerHead, body: playerBody });
+        playerRef.current = { head: playerHead, body: playerBody };
         
         const keys: { [key: string]: boolean } = {};
         const handleKeyDown = (event: KeyboardEvent) => {
@@ -103,20 +103,22 @@ const TipsyTumbleGame: React.FC = () => {
         window.addEventListener('keyup', handleKeyUp);
 
         Matter.Events.on(engine, 'beforeUpdate', () => {
-            if (!player) return;
+            if (!playerRef.current) return;
 
-            const {body: playerBody } = player;
-            const { rightingStiffness, rightingDamping } = config;
+            const { body: playerBody } = playerRef.current;
             
-            // Only apply righting force if not being controlled
+            // This is a direct reference to the latest config state
+            const currentConfig = (window as any).__tipsyTumbleConfig;
+            if (!currentConfig) return;
+
+            const { rightingStiffness, rightingDamping } = currentConfig;
+            
             if (!keys['ArrowLeft'] && !keys['KeyA'] && !keys['ArrowRight'] && !keys['KeyD']) {
                 const angle = playerBody.angle;
-                // A more aggressive restoring force to ensure it gets upright
                 const restoringTorque = -rightingStiffness * angle - rightingDamping * playerBody.angularVelocity;
-                Matter.Body.applyForce(playerBody, playerBody.position, { x: 0, y: -0.001 * Math.abs(angle) }); // small lift to help righting
+                Matter.Body.applyForce(playerBody, playerBody.position, { x: 0, y: -0.001 * Math.abs(angle) });
                 Matter.Body.setAngularVelocity(playerBody, playerBody.angularVelocity + restoringTorque);
             }
-
 
             if (keys['ArrowLeft'] || keys['KeyA']) {
                 Matter.Body.applyForce(playerBody, playerBody.position, { x: -0.05, y: 0 });
@@ -149,14 +151,18 @@ const TipsyTumbleGame: React.FC = () => {
 
     // Effect to update physics when config changes
     useEffect(() => {
+        // Store config on a global object to be accessed inside the 'beforeUpdate' loop
+        // This is a workaround to get the latest state inside the Matter.js event listener
+        (window as any).__tipsyTumbleConfig = config;
+
         const engine = engineRef.current;
         engine.gravity.y = config.gravity;
         engine.constraintIterations = config.constraintIterations;
         engine.positionIterations = config.positionIterations;
         engine.velocityIterations = config.velocityIterations;
 
-        if (player) {
-            const { head, body } = player;
+        if (playerRef.current) {
+            const { head, body } = playerRef.current;
             Matter.Body.setMass(head, config.headMass);
             head.restitution = config.headRestitution;
             head.friction = config.headFriction;
@@ -167,7 +173,7 @@ const TipsyTumbleGame: React.FC = () => {
             body.friction = config.bodyFriction;
             body.frictionAir = config.bodyFrictionAir;
         }
-    }, [config, player]);
+    }, [config]);
 
 
     const handleSliderChange = (key: keyof PhysicsConfig, value: number) => {
