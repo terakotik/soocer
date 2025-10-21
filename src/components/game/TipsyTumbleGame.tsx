@@ -17,20 +17,20 @@ import { Slider } from '@/components/ui/slider';
 import { Input } from '../ui/input';
 
 const initialPhysicsConfig = {
-    gravity: 1,
+    gravity: 1.2,
     constraintIterations: 2,
     positionIterations: 6,
     velocityIterations: 4,
     headMass: 1, 
-    headRestitution: 0.5,
+    headRestitution: 0.1,
     headFriction: 0.1,
     headFrictionAir: 0.01,
-    bodyMass: 5, 
-    bodyRestitution: 0.2, // Bounce off the ground
+    bodyMass: 10,
+    bodyRestitution: 0.05, // Lower bounce from ground
     bodyFriction: 0.5,
     bodyFrictionAir: 0.02,
-    rightingStiffness: 0.3, // Strong self-righting
-    rightingDamping: 0.1,
+    rightingStiffness: 0.5, // Very strong self-righting
+    rightingDamping: 0.2,
 };
 
 type PhysicsConfig = typeof initialPhysicsConfig;
@@ -117,22 +117,25 @@ const TipsyTumbleGame: React.FC = () => {
             
             // Always apply self-righting torque
             const angle = playerBody.angle;
-            const restoringTorque = -rightingStiffness * angle - rightingDamping * playerBody.angularVelocity;
+            // Limit angle to prevent flipping over completely, cap at 90 degrees (PI/2 radians)
+            const limitedAngle = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, angle));
+            const restoringTorque = -rightingStiffness * limitedAngle - rightingDamping * playerBody.angularVelocity;
             Matter.Body.applyForce(playerBody, playerBody.position, { x: 0, y: -0.0001 * Math.abs(angle) });
             playerBody.torque += restoringTorque;
 
-            const moveForce = 0.01 * bodyMass;
+            const moveForce = 0.01 * bodyMass; // Increased move force
 
             if (keys['ArrowLeft'] || keys['KeyA']) {
-                 Matter.Body.applyForce(playerHead, playerHead.position, { x: -moveForce, y: 0 });
+                 Matter.Body.applyForce(playerBody, playerBody.position, { x: -moveForce, y: 0 });
             }
             if (keys['ArrowRight'] || keys['KeyD']) {
-                Matter.Body.applyForce(playerHead, playerHead.position, { x: moveForce, y: 0 });
+                Matter.Body.applyForce(playerBody, playerBody.position, { x: moveForce, y: 0 });
             }
             if ((keys['ArrowUp'] || keys['KeyW'] || keys['Space']) && !jumpCooldown) {
                 const isGrounded = Matter.Query.collides(playerBody, [ground]).length > 0;
                 if (isGrounded) {
-                    Matter.Body.applyForce(playerBody, playerBody.position, { x: 0, y: -(bodyMass * 0.15) });
+                    // Reduced jump force
+                    Matter.Body.applyForce(playerBody, playerBody.position, { x: 0, y: -(bodyMass * 0.1) });
                     jumpCooldown = true;
                     setTimeout(() => { jumpCooldown = false; }, 500); // 500ms cooldown
                 }
@@ -261,5 +264,3 @@ const TipsyTumbleGame: React.FC = () => {
 };
 
 export default TipsyTumbleGame;
-
-    
