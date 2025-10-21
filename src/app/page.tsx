@@ -5,7 +5,7 @@ import GameClient from "@/components/game/GameClient";
 
 export default function Home() {
     return (
-        <div className="min-h-screen bg-background text-foreground flex flex-col items-center justify-center p-4">
+        <div className="min-h-screen bg-background text-foreground flex flex-col items-center justify-center p-4 font-body">
             <header className="mb-8 text-center">
                 <div className="flex items-center justify-center gap-4">
                     <Logo className="h-16 w-16 text-primary" />
