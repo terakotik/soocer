@@ -192,15 +192,22 @@ const TipsyTumbleGame: React.FC = () => {
             const restoringTorque = -angle * rightingStiffness - playerBody.angularVelocity * rightingDamping;
             playerBody.torque += restoringTorque;
 
-            // Vertical Jump Logic
-             if ((keysDown.current['ArrowUp'] || keysDown.current['KeyW'] || keysDown.current['Space'])) {
+            // Jump logic
+            if ((keysDown.current['ArrowUp'] || keysDown.current['KeyW'] || keysDown.current['Space'])) {
                 if (canJump.current) {
                     const groundBody = groundRef.current;
                     if (!groundBody) return;
-                    // Check if player is on the ground
+                    
                     const collisions = Matter.Query.collides(playerBody, [groundBody]);
                     if (collisions.length > 0) {
-                        Matter.Body.applyForce(playerBody, playerBody.position, {x: 0, y: -0.05 * bodyMass * scale});
+                        const jumpAngle = playerBody.angle;
+                        const jumpMagnitude = 0.05 * bodyMass * scale;
+                        
+                        // Calculate force components based on the character's tilt
+                        const forceX = Math.sin(jumpAngle) * jumpMagnitude;
+                        const forceY = -Math.cos(jumpAngle) * jumpMagnitude;
+
+                        Matter.Body.applyForce(playerBody, playerBody.position, {x: forceX, y: forceY});
                         canJump.current = false;
                     }
                 }
