@@ -1,12 +1,7 @@
-import dynamic from 'next/dynamic';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Keyboard, MoveLeft, MoveRight, MoveUp } from 'lucide-react';
 import { Logo } from '@/components/icons/logo';
-
-const TipsyTumbleGame = dynamic(() => import('@/components/game/TipsyTumbleGame'), {
-    ssr: false,
-    loading: () => <div className="w-[800px] h-[600px] bg-muted rounded-lg flex items-center justify-center"><p>Loading Game...</p></div>
-});
+import GameClient from "@/components/game/GameClient";
 
 export default function Home() {
     return (
@@ -20,7 +15,7 @@ export default function Home() {
             </header>
 
             <main className="flex flex-col lg:flex-row items-center justify-center gap-8 w-full max-w-6xl">
-                <TipsyTumbleGame />
+                <GameClient />
                 <Card className="w-full max-w-sm lg:max-w-xs shrink-0">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
