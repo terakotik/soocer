@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useEffect, useRef, useState } from 'react';
@@ -20,16 +21,16 @@ const initialPhysicsConfig = {
     constraintIterations: 4,
     positionIterations: 12,
     velocityIterations: 8,
-    headMass: 6.5,
+    headMass: 1,
     headRestitution: 0.1,
     headFriction: 0.05,
-    headFrictionAir: 0.02,
-    bodyMass: 73.5,
+    headFrictionAir: 0.05,
+    bodyMass: 15,
     bodyRestitution: 0.01,
     bodyFriction: 0.5,
-    bodyFrictionAir: 0.02,
+    bodyFrictionAir: 0.05,
     rightingStiffness: 0.2,
-    rightingDamping: 0.1
+    rightingDamping: 0.1,
 };
 
 type PhysicsConfig = typeof initialPhysicsConfig;
@@ -107,18 +108,16 @@ const TipsyTumbleGame: React.FC = () => {
 
             const { body: playerBody } = playerRef.current;
             
-            // This is a direct reference to the latest config state
             const currentConfig = (window as any).__tipsyTumbleConfig;
             if (!currentConfig) return;
 
             const { rightingStiffness, rightingDamping, bodyMass } = currentConfig;
             
-            if (!keys['ArrowLeft'] && !keys['KeyA'] && !keys['ArrowRight'] && !keys['KeyD']) {
-                const angle = playerBody.angle;
-                const restoringTorque = -rightingStiffness * angle - rightingDamping * playerBody.angularVelocity;
-                Matter.Body.applyForce(playerBody, playerBody.position, { x: 0, y: -0.0001 * Math.abs(angle) });
-                Matter.Body.setAngularVelocity(playerBody, playerBody.angularVelocity + restoringTorque);
-            }
+            // Always apply self-righting torque
+            const angle = playerBody.angle;
+            const restoringTorque = -rightingStiffness * angle - rightingDamping * playerBody.angularVelocity;
+            Matter.Body.applyForce(playerBody, playerBody.position, { x: 0, y: -0.0001 * Math.abs(angle) });
+            Matter.Body.setAngularVelocity(playerBody, playerBody.angularVelocity + restoringTorque);
 
             if (keys['ArrowLeft'] || keys['KeyA']) {
                 Matter.Body.applyForce(playerBody, playerBody.position, { x: -0.05, y: 0 });
@@ -151,8 +150,6 @@ const TipsyTumbleGame: React.FC = () => {
 
     // Effect to update physics when config changes
     useEffect(() => {
-        // Store config on a global object to be accessed inside the 'beforeUpdate' loop
-        // This is a workaround to get the latest state inside the Matter.js event listener
         (window as any).__tipsyTumbleConfig = config;
 
         const engine = engineRef.current;
@@ -212,7 +209,7 @@ const TipsyTumbleGame: React.FC = () => {
                              <Slider id="rightingStiffness" min={0} max={2} step={0.01} value={[config.rightingStiffness]} onValueChange={([val]) => handleSliderChange('rightingStiffness', val)} className="col-span-2" />
                         </div>
                          <div className="grid grid-cols-3 items-center gap-4">
-                            <Label htmlFor="rightingDamping">Демпфирование</Label>
+                            <Label htmlFor="rightingDamping">Сила покачивания</Label>
                             <Slider id="rightingDamping" min={0} max={1} step={0.01} value={[config.rightingDamping]} onValueChange={([val]) => handleSliderChange('rightingDamping', val)} className="col-span-2" />
                         </div>
                         <h4 className="font-semibold mt-4">Тело</h4>
