@@ -42,6 +42,7 @@ const TipsyTumbleGame: React.FC = () => {
     const playerRef = useRef<Matter.Body | null>(null);
     const keysDown = useRef<{ [key: string]: boolean }>({});
     const canJump = useRef(true);
+    const groundRef = useRef<Matter.Body | null>(null);
 
     // Main game setup effect
     useEffect(() => {
@@ -66,9 +67,11 @@ const TipsyTumbleGame: React.FC = () => {
         renderRef.current = render;
 
         const ground = Matter.Bodies.rectangle(400, 610, 820, 60, { isStatic: true, render: { fillStyle: '#90EE90' } });
+        groundRef.current = ground;
         const leftWall = Matter.Bodies.rectangle(-10, 300, 20, 620, { isStatic: true, render: { fillStyle: '#ADCDE0' } });
         const rightWall = Matter.Bodies.rectangle(810, 300, 20, 620, { isStatic: true, render: { fillStyle: '#ADCDE0' } });
-        const ceiling = Matter.Bodies.rectangle(400, -10, 820, 20, { isStatic: true, render: { fillStyle: '#ADCDE0' } });
+        const ceiling = Matter.Bodies.rectangle(400, -10, 820, 20, { isStatic: true, render: { fillStyle: 'transparent', strokeStyle: 'transparent' } });
+
 
         // Create the new player shape
         const playerX = 200;
@@ -77,7 +80,7 @@ const TipsyTumbleGame: React.FC = () => {
         const bottom = Matter.Bodies.circle(playerX, playerY + 20, 25, { 
             density: 0.1, 
             friction: 0.5,
-            restitution: 0.1,
+            restitution: config.bodyRestitution,
             render: { fillStyle: '#1a1a1a' } 
         });
 
@@ -91,8 +94,8 @@ const TipsyTumbleGame: React.FC = () => {
         
         const playerBody = Matter.Body.create({
             parts: [bottom, top],
-            frictionAir: 0.02,
-            friction: 0.1,
+            frictionAir: config.bodyFrictionAir,
+            friction: config.bodyFriction,
         });
 
         Matter.Body.setMass(playerBody, config.bodyMass);
@@ -105,6 +108,28 @@ const TipsyTumbleGame: React.FC = () => {
             if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'KeyW', 'KeyA', 'KeyS', 'KeyD'].includes(event.code)) {
                 event.preventDefault();
             }
+
+            const player = playerRef.current;
+            const groundBody = groundRef.current;
+            if (!player || !groundBody || keysDown.current[event.code]) return; // Don't hop if key is already held down
+
+            const currentConfig = (window as any).__tipsyTumbleConfig || config;
+            const { bodyMass } = currentConfig;
+            const isGrounded = Matter.Query.collides(player, [groundBody]).length > 0;
+            
+            const hopForce = 0.015 * bodyMass;
+            const verticalHopForce = 0.03 * bodyMass;
+
+            if (isGrounded) {
+                if (event.code === 'ArrowLeft' || event.code === 'KeyA') {
+                    Matter.Body.applyForce(player, player.position, { x: -hopForce, y: -verticalHopForce });
+                }
+                if (event.code === 'ArrowRight' || event.code === 'KeyD') {
+                    Matter.Body.applyForce(player, player.position, { x: hopForce, y: -verticalHopForce });
+                }
+            }
+
+
             keysDown.current[event.code] = true;
         };
         const handleKeyUp = (event: KeyboardEvent) => { 
@@ -130,18 +155,13 @@ const TipsyTumbleGame: React.FC = () => {
             const restoringTorque = -angle * rightingStiffness - playerBody.angularVelocity * rightingDamping;
             playerBody.torque += restoringTorque;
 
-            const moveForce = 0.005 * bodyMass;
-
-            if (keysDown.current['ArrowLeft'] || keysDown.current['KeyA']) {
-                 Matter.Body.applyForce(playerBody, playerBody.position, { x: -moveForce, y: 0 });
-            }
-            if (keysDown.current['ArrowRight'] || keysDown.current['KeyD']) {
-                Matter.Body.applyForce(playerBody, playerBody.position, { x: moveForce, y: 0 });
-            }
+            // Vertical Jump Logic
              if ((keysDown.current['ArrowUp'] || keysDown.current['KeyW'] || keysDown.current['Space'])) {
                 if (canJump.current) {
+                    const groundBody = groundRef.current;
+                    if (!groundBody) return;
                     // Check if player is on the ground
-                    const collisions = Matter.Query.collides(playerBody, [ground]);
+                    const collisions = Matter.Query.collides(playerBody, [groundBody]);
                     if (collisions.length > 0) {
                         Matter.Body.applyForce(playerBody, playerBody.position, {x: 0, y: -0.05 * bodyMass});
                         canJump.current = false;
@@ -180,7 +200,11 @@ const TipsyTumbleGame: React.FC = () => {
         if (playerRef.current) {
             const playerBody = playerRef.current;
             Matter.Body.setMass(playerBody, config.bodyMass);
-            playerBody.restitution = config.bodyRestitution;
+            // The first part of the body is the bottom circle
+            const bottomPart = playerBody.parts[1]; 
+            if (bottomPart) {
+                bottomPart.restitution = config.bodyRestitution;
+            }
             playerBody.friction = config.bodyFriction;
             playerBody.frictionAir = config.bodyFrictionAir;
         }
@@ -252,5 +276,3 @@ const TipsyTumbleGame: React.FC = () => {
 };
 
 export default TipsyTumbleGame;
-
-  
