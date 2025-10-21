@@ -107,9 +107,16 @@ const TipsyTumbleGame: React.FC = () => {
 
             const {body: playerBody } = player;
             const { rightingStiffness, rightingDamping } = config;
+            
+            // Only apply righting force if not being controlled
+            if (!keys['ArrowLeft'] && !keys['KeyA'] && !keys['ArrowRight'] && !keys['KeyD']) {
+                const angle = playerBody.angle;
+                // A more aggressive restoring force to ensure it gets upright
+                const restoringTorque = -rightingStiffness * angle - rightingDamping * playerBody.angularVelocity;
+                Matter.Body.applyForce(playerBody, playerBody.position, { x: 0, y: -0.001 * Math.abs(angle) }); // small lift to help righting
+                Matter.Body.setAngularVelocity(playerBody, playerBody.angularVelocity + restoringTorque);
+            }
 
-            const restoringTorque = -rightingStiffness * playerBody.angle - rightingDamping * playerBody.angularVelocity;
-            Matter.Body.setAngularVelocity(playerBody, playerBody.angularVelocity + restoringTorque);
 
             if (keys['ArrowLeft'] || keys['KeyA']) {
                 Matter.Body.applyForce(playerBody, playerBody.position, { x: -0.05, y: 0 });
@@ -187,54 +194,54 @@ const TipsyTumbleGame: React.FC = () => {
                 </DialogTrigger>
                 <DialogContent className="max-w-md">
                     <DialogHeader>
-                        <DialogTitle>Physics Settings</DialogTitle>
+                        <DialogTitle>Настройки физики</DialogTitle>
                     </DialogHeader>
                     <div className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto pr-4">
                         <div className="grid grid-cols-3 items-center gap-4">
-                            <Label htmlFor="gravity">Gravity</Label>
+                            <Label htmlFor="gravity">Гравитация</Label>
                             <Slider id="gravity" min={0} max={2} step={0.1} value={[config.gravity]} onValueChange={([val]) => handleSliderChange('gravity', val)} className="col-span-2" />
                         </div>
                          <div className="grid grid-cols-3 items-center gap-4">
-                            <Label htmlFor="rightingStiffness">Righting Stiffness</Label>
+                            <Label htmlFor="rightingStiffness">Жесткость выпрямления</Label>
                              <Slider id="rightingStiffness" min={0} max={2} step={0.01} value={[config.rightingStiffness]} onValueChange={([val]) => handleSliderChange('rightingStiffness', val)} className="col-span-2" />
                         </div>
                          <div className="grid grid-cols-3 items-center gap-4">
-                            <Label htmlFor="rightingDamping">Righting Damping</Label>
+                            <Label htmlFor="rightingDamping">Демпфирование</Label>
                             <Slider id="rightingDamping" min={0} max={1} step={0.01} value={[config.rightingDamping]} onValueChange={([val]) => handleSliderChange('rightingDamping', val)} className="col-span-2" />
                         </div>
-                        <h4 className="font-semibold mt-4">Body</h4>
+                        <h4 className="font-semibold mt-4">Тело</h4>
                         <div className="grid grid-cols-3 items-center gap-4">
-                            <Label htmlFor="bodyFriction">Body Friction</Label>
+                            <Label htmlFor="bodyFriction">Трение тела</Label>
                             <Slider id="bodyFriction" min={0} max={2} step={0.1} value={[config.bodyFriction]} onValueChange={([val]) => handleSliderChange('bodyFriction', val)} className="col-span-2" />
                         </div>
                         <div className="grid grid-cols-3 items-center gap-4">
-                            <Label htmlFor="bodyFrictionAir">Body Air Friction</Label>
+                            <Label htmlFor="bodyFrictionAir">Сопр. воздуха (тело)</Label>
                             <Slider id="bodyFrictionAir" min={0} max={1} step={0.01} value={[config.bodyFrictionAir]} onValueChange={([val]) => handleSliderChange('bodyFrictionAir', val)} className="col-span-2" />
                         </div>
                         <div className="grid grid-cols-3 items-center gap-4">
-                            <Label htmlFor="bodyMass">Body Mass</Label>
+                            <Label htmlFor="bodyMass">Масса тела</Label>
                             <Input id="bodyMass" type="number" value={config.bodyMass} onChange={(e) => handleInputChange('bodyMass', e.target.value)} className="col-span-2 h-8" />
                         </div>
                         <div className="grid grid-cols-3 items-center gap-4">
-                            <Label htmlFor="bodyRestitution">Body Restitution</Label>
+                            <Label htmlFor="bodyRestitution">Отскок тела</Label>
                             <Slider id="bodyRestitution" min={0} max={1} step={0.01} value={[config.bodyRestitution]} onValueChange={([val]) => handleSliderChange('bodyRestitution', val)} className="col-span-2" />
                         </div>
 
-                        <h4 className="font-semibold mt-4">Head</h4>
+                        <h4 className="font-semibold mt-4">Голова</h4>
                         <div className="grid grid-cols-3 items-center gap-4">
-                            <Label htmlFor="headFriction">Head Friction</Label>
+                            <Label htmlFor="headFriction">Трение головы</Label>
                             <Slider id="headFriction" min={0} max={1} step={0.01} value={[config.headFriction]} onValueChange={([val]) => handleSliderChange('headFriction', val)} className="col-span-2" />
                         </div>
                         <div className="grid grid-cols-3 items-center gap-4">
-                            <Label htmlFor="headFrictionAir">Head Air Friction</Label>
+                            <Label htmlFor="headFrictionAir">Сопр. воздуха (голова)</Label>
                             <Slider id="headFrictionAir" min={0} max={1} step={0.01} value={[config.headFrictionAir]} onValueChange={([val]) => handleSliderChange('headFrictionAir', val)} className="col-span-2" />
                         </div>
                         <div className="grid grid-cols-3 items-center gap-4">
-                            <Label htmlFor="headMass">Head Mass</Label>
+                            <Label htmlFor="headMass">Масса головы</Label>
                              <Input id="headMass" type="number" value={config.headMass} onChange={(e) => handleInputChange('headMass', e.target.value)} className="col-span-2 h-8" />
                         </div>
                         <div className="grid grid-cols-3 items-center gap-4">
-                            <Label htmlFor="headRestitution">Head Restitution</Label>
+                            <Label htmlFor="headRestitution">Отскок головы</Label>
                             <Slider id="headRestitution" min={0} max={1} step={0.01} value={[config.headRestitution]} onValueChange={([val]) => handleSliderChange('headRestitution', val)} className="col-span-2" />
                         </div>
                     </div>
