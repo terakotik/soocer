@@ -147,7 +147,7 @@ const TipsyTumbleGame: React.FC = () => {
             const { bodyMass } = currentConfig;
             
             const hopForce = 0.01 * bodyMass * scale; 
-            const verticalHopForce = 0.00;
+            const verticalHopForce = 0.005 * bodyMass * scale;
 
             if (Matter.Query.collides(player, [groundBody]).length > 0) {
                 if (event.code === 'ArrowLeft' || event.code === 'KeyA') {
