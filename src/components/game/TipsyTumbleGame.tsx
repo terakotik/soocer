@@ -18,19 +18,19 @@ import { Input } from '../ui/input';
 
 const initialPhysicsConfig = {
     gravity: 1,
-    constraintIterations: 4,
-    positionIterations: 12,
-    velocityIterations: 8,
-    headMass: 1,
-    headRestitution: 0.1,
-    headFriction: 0.05,
-    headFrictionAir: 0.05,
-    bodyMass: 15,
-    bodyRestitution: 0.01,
-    bodyFriction: 0.5,
-    bodyFrictionAir: 0.05,
-    rightingStiffness: 0.2,
-    rightingDamping: 0.1,
+    constraintIterations: 2, // Lower for more "bendy" feel
+    positionIterations: 6,
+    velocityIterations: 4,
+    headMass: 4, // Heavier head
+    headRestitution: 0.2,
+    headFriction: 0.1,
+    headFrictionAir: 0.02,
+    bodyMass: 2, // Lighter body
+    bodyRestitution: 0.1,
+    bodyFriction: 0.1,
+    bodyFrictionAir: 0.08, // More air friction for floppy movement
+    rightingStiffness: 0.015, // Low stiffness for wobbliness
+    rightingDamping: 0.2, // High damping for a "heavy" feel
 };
 
 type PhysicsConfig = typeof initialPhysicsConfig;
@@ -103,10 +103,12 @@ const TipsyTumbleGame: React.FC = () => {
         window.addEventListener('keydown', handleKeyDown);
         window.addEventListener('keyup', handleKeyUp);
 
+        let jumpCooldown = false;
+
         Matter.Events.on(engine, 'beforeUpdate', () => {
             if (!playerRef.current) return;
 
-            const { body: playerBody } = playerRef.current;
+            const { head: playerHead, body: playerBody } = playerRef.current;
             
             const currentConfig = (window as any).__tipsyTumbleConfig;
             if (!currentConfig) return;
@@ -115,22 +117,27 @@ const TipsyTumbleGame: React.FC = () => {
             
             // Always apply self-righting torque
             const angle = playerBody.angle;
-            // Link bodyRestitution to the swaying effect
             const restitutionEffect = 1 + bodyRestitution * 5; 
             const restoringTorque = -rightingStiffness * angle * restitutionEffect - rightingDamping * playerBody.angularVelocity;
             Matter.Body.applyForce(playerBody, playerBody.position, { x: 0, y: -0.0001 * Math.abs(angle) });
-            Matter.Body.setAngularVelocity(playerBody, playerBody.angularVelocity + restoringTorque);
+            playerBody.torque += restoringTorque;
+
+            const moveForce = 0.005 * bodyMass;
 
             if (keys['ArrowLeft'] || keys['KeyA']) {
-                Matter.Body.applyForce(playerBody, playerBody.position, { x: -0.05, y: 0 });
+                 Matter.Body.applyForce(playerHead, playerHead.position, { x: -moveForce, y: 0 });
             }
             if (keys['ArrowRight'] || keys['KeyD']) {
-                Matter.Body.applyForce(playerBody, playerBody.position, { x: 0.05, y: 0 });
+                Matter.Body.applyForce(playerHead, playerHead.position, { x: moveForce, y: 0 });
             }
-            if (keys['ArrowUp'] || keys['KeyW'] || keys['Space']) {
+            if ((keys['ArrowUp'] || keys['KeyW'] || keys['Space']) && !jumpCooldown) {
                 const isGrounded = Matter.Query.collides(playerBody, [ground]).length > 0;
                 if (isGrounded) {
-                    Matter.Body.applyForce(playerBody, playerBody.position, { x: 0, y: -(bodyMass * 0.1) });
+                    // Apply a "kick" force - up and a bit forward, plus torque
+                    Matter.Body.applyForce(playerBody, playerBody.position, { x: 0, y: -(bodyMass * 0.3) });
+                    playerBody.torque += 1.5; // Forward rotational force
+                    jumpCooldown = true;
+                    setTimeout(() => { jumpCooldown = false; }, 500); // 500ms cooldown
                 }
             }
         });
@@ -208,7 +215,7 @@ const TipsyTumbleGame: React.FC = () => {
                         </div>
                          <div className="grid grid-cols-3 items-center gap-4">
                             <Label htmlFor="rightingStiffness">Жесткость выпрямления</Label>
-                             <Slider id="rightingStiffness" min={0} max={2} step={0.01} value={[config.rightingStiffness]} onValueChange={([val]) => handleSliderChange('rightingStiffness', val)} className="col-span-2" />
+                             <Slider id="rightingStiffness" min={0} max={0.2} step={0.005} value={[config.rightingStiffness]} onValueChange={([val]) => handleSliderChange('rightingStiffness', val)} className="col-span-2" />
                         </div>
                          <div className="grid grid-cols-3 items-center gap-4">
                             <Label htmlFor="rightingDamping">Сила покачивания</Label>
@@ -217,11 +224,11 @@ const TipsyTumbleGame: React.FC = () => {
                         <h4 className="font-semibold mt-4">Тело</h4>
                         <div className="grid grid-cols-3 items-center gap-4">
                             <Label htmlFor="bodyFriction">Трение тела</Label>
-                            <Slider id="bodyFriction" min={0} max={2} step={0.1} value={[config.bodyFriction]} onValueChange={([val]) => handleSliderChange('bodyFriction', val)} className="col-span-2" />
+                            <Slider id="bodyFriction" min={0} max={1} step={0.05} value={[config.bodyFriction]} onValueChange={([val]) => handleSliderChange('bodyFriction', val)} className="col-span-2" />
                         </div>
                         <div className="grid grid-cols-3 items-center gap-4">
                             <Label htmlFor="bodyFrictionAir">Сопр. воздуха (тело)</Label>
-                            <Slider id="bodyFrictionAir" min={0} max={1} step={0.01} value={[config.bodyFrictionAir]} onValueChange={([val]) => handleSliderChange('bodyFrictionAir', val)} className="col-span-2" />
+                            <Slider id="bodyFrictionAir" min={0} max={0.2} step={0.01} value={[config.bodyFrictionAir]} onValueChange={([val]) => handleSliderChange('bodyFrictionAir', val)} className="col-span-2" />
                         </div>
                         <div className="grid grid-cols-3 items-center gap-4">
                             <Label htmlFor="bodyMass">Масса тела</Label>
@@ -239,7 +246,7 @@ const TipsyTumbleGame: React.FC = () => {
                         </div>
                         <div className="grid grid-cols-3 items-center gap-4">
                             <Label htmlFor="headFrictionAir">Сопр. воздуха (голова)</Label>
-                            <Slider id="headFrictionAir" min={0} max={1} step={0.01} value={[config.headFrictionAir]} onValueChange={([val]) => handleSliderChange('headFrictionAir', val)} className="col-span-2" />
+                            <Slider id="headFrictionAir" min={0} max={0.1} step={0.005} value={[config.headFrictionAir]} onValueChange={([val]) => handleSliderChange('headFrictionAir', val)} className="col-span-2" />
                         </div>
                         <div className="grid grid-cols-3 items-center gap-4">
                             <Label htmlFor="headMass">Масса головы</Label>
