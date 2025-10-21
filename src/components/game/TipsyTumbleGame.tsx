@@ -74,7 +74,7 @@ const TipsyTumbleGame: React.FC = () => {
         const playerX = 200;
         const playerY = 500;
         
-        const bottom = Matter.Bodies.circle(playerX, playerY + 20, 30, { 
+        const bottom = Matter.Bodies.circle(playerX, playerY + 20, 25, { 
             density: 0.1, 
             friction: 0.5,
             restitution: 0.1,
@@ -252,3 +252,5 @@ const TipsyTumbleGame: React.FC = () => {
 };
 
 export default TipsyTumbleGame;
+
+  
