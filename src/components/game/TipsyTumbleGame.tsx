@@ -6,7 +6,7 @@ import Matter from 'matter-js';
 const TipsyTumbleGame: React.FC = () => {
     const sceneRef = useRef<HTMLDivElement>(null);
     // Use refs to store Matter.js objects to prevent re-creation on re-renders
-    const engineRef = useRef(Matter.Engine.create({ gravity: { y: 1 } }));
+    const engineRef = useRef(Matter.Engine.create({ gravity: { y: 1 }, constraintIterations: 4, positionIterations: 12, velocityIterations: 8 }));
     const runnerRef = useRef(Matter.Runner.create());
     const renderRef = useRef<Matter.Render | null>(null);
 
@@ -14,6 +14,9 @@ const TipsyTumbleGame: React.FC = () => {
         const engine = engineRef.current;
         const world = engine.world;
         const runner = runnerRef.current;
+
+        // Turn off gravity for a moment to stabilize
+        engine.gravity.y = 0;
 
         // Ensure the component only initializes once
         if (renderRef.current || !sceneRef.current) {
@@ -42,14 +45,15 @@ const TipsyTumbleGame: React.FC = () => {
             chamfer: { radius: 10 },
             mass: 10,
             restitution: 0.2,
-            frictionAir: 0.02,
+            frictionAir: 0.05, // Increased air friction
+            friction: 0.1,
             render: { fillStyle: '#29ABE2' }
         });
 
         const playerFoot = Matter.Bodies.circle(200, 540, 20, {
-            mass: 2,
+            mass: 5, // Increased mass for stability
             restitution: 0.5,
-            friction: 0.9,
+            friction: 1.0, // Increased friction
             render: { fillStyle: '#29ABE2' }
         });
 
@@ -72,33 +76,44 @@ const TipsyTumbleGame: React.FC = () => {
         });
 
         Matter.Composite.add(world, [ground, leftWall, rightWall, playerTorso, playerFoot, playerConstraint, ball]);
+        
+        // Let the world settle, then turn gravity back on
+        setTimeout(() => {
+            engine.gravity.y = 1;
+        }, 500);
 
         // Controls
         const keys: { [key: string]: boolean } = {};
-        const handleKeyDown = (event: KeyboardEvent) => { keys[event.code] = true; };
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'KeyW', 'KeyA', 'KeyS', 'KeyD'].includes(event.code)) {
+                event.preventDefault();
+            }
+            keys[event.code] = true;
+        };
         const handleKeyUp = (event: KeyboardEvent) => { keys[event.code] = false; };
         window.addEventListener('keydown', handleKeyDown);
         window.addEventListener('keyup', handleKeyUp);
 
         // Game Loop
         Matter.Events.on(engine, 'beforeUpdate', () => {
-            // Self-righting torque
-            const k = 0.2; // Stiffness
-            const d = 0.1; // Damping
+            // Stronger Self-righting torque
+            const k = 0.8; // Stiffness
+            const d = 0.2; // Damping
             const restoringTorque = -k * playerTorso.angle - d * playerTorso.angularVelocity;
-            playerTorso.torque += restoringTorque;
+            Matter.Body.setAngularVelocity(playerTorso, playerTorso.angularVelocity + restoringTorque);
+
 
             // Player movement
             if (keys['ArrowLeft'] || keys['KeyA']) {
-                Matter.Body.applyForce(playerFoot, playerFoot.position, { x: -0.015, y: 0 });
+                Matter.Body.applyForce(playerFoot, playerFoot.position, { x: -0.025, y: 0 });
             }
             if (keys['ArrowRight'] || keys['KeyD']) {
-                Matter.Body.applyForce(playerFoot, playerFoot.position, { x: 0.015, y: 0 });
+                Matter.Body.applyForce(playerFoot, playerFoot.position, { x: 0.025, y: 0 });
             }
             if (keys['ArrowUp'] || keys['KeyW'] || keys['Space']) {
                 const isGrounded = Matter.Query.collides(playerFoot, [ground]).length > 0;
                 if(isGrounded) {
-                    Matter.Body.applyForce(playerFoot, playerFoot.position, { x: 0, y: -0.3 });
+                    Matter.Body.applyForce(playerFoot, playerFoot.position, { x: 0, y: -0.4 });
                 }
             }
         });
