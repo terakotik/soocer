@@ -45,7 +45,7 @@ const TipsyTumbleGame: React.FC = () => {
             chamfer: { radius: 10 },
             mass: 10,
             restitution: 0.2,
-            frictionAir: 0.05, // Increased air friction
+            frictionAir: 0.1, // Increased air friction to dampen movement
             friction: 0.1,
             render: { fillStyle: '#29ABE2' }
         });
@@ -54,6 +54,7 @@ const TipsyTumbleGame: React.FC = () => {
             mass: 5, // Increased mass for stability
             restitution: 0.5,
             friction: 1.0, // Increased friction
+            frictionAir: 0.01,
             render: { fillStyle: '#29ABE2' }
         });
 
@@ -97,7 +98,7 @@ const TipsyTumbleGame: React.FC = () => {
         // Game Loop
         Matter.Events.on(engine, 'beforeUpdate', () => {
             // Stronger Self-righting torque
-            const k = 0.8; // Stiffness
+            const k = 0.5; // Stiffness
             const d = 0.2; // Damping
             const restoringTorque = -k * playerTorso.angle - d * playerTorso.angularVelocity;
             Matter.Body.setAngularVelocity(playerTorso, playerTorso.angularVelocity + restoringTorque);
