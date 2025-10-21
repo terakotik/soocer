@@ -24,10 +24,10 @@ const initialPhysicsConfig = {
     bodyMass: 10,
     bodyRestitution: 0,
     bodyFriction: 0.5,
-    bodyFrictionAir: 0.05,
-    rightingStiffness: 0.1,
-    rightingDamping: 0.1,
-    kickForce: 0.05,
+    bodyFrictionAir: 0.1,
+    rightingStiffness: 0.4,
+    rightingDamping: 0.2,
+    kickForce: 0.01,
 };
 
 type PhysicsConfig = typeof initialPhysicsConfig;
@@ -68,13 +68,13 @@ const TipsyTumbleGame: React.FC = () => {
         const rightWall = Matter.Bodies.rectangle(810, 300, 20, 620, { isStatic: true, render: { fillStyle: '#ADCDE0' } });
         
         const playerBody = Matter.Bodies.rectangle(200, 520, 40, 80, { chamfer: { radius: 10 }, render: { fillStyle: '#29ABE2' } });
-        const playerLeg = Matter.Bodies.rectangle(200, 570, 20, 40, { render: { fillStyle: '#1E8449' } });
+        const playerLeg = Matter.Bodies.rectangle(200, 570, 40, 20, { render: { fillStyle: '#1E8449' } });
         
         const legConstraint = Matter.Constraint.create({
             bodyA: playerBody,
             bodyB: playerLeg,
             pointA: { x: 0, y: 40 },
-            pointB: { x: 0, y: -20 },
+            pointB: { x: 0, y: -10 },
             stiffness: 0.8,
             length: 0,
             render: { visible: false }
@@ -108,7 +108,7 @@ const TipsyTumbleGame: React.FC = () => {
             const angle = playerBody.angle;
             const limitedAngle = Math.max(-Math.PI, Math.min(Math.PI, angle));
             const restoringTorque = -rightingStiffness * limitedAngle - rightingDamping * playerBody.angularVelocity;
-            Matter.Body.applyForce(playerBody, playerBody.position, { x: 0, y: -0.0001 * Math.abs(angle) });
+            Matter.Body.applyForce(playerBody, playerBody.position, { x: 0, y: 0 });
             playerBody.torque += restoringTorque;
 
             const moveForce = 0.01 * bodyMass;
@@ -120,8 +120,10 @@ const TipsyTumbleGame: React.FC = () => {
                 Matter.Body.applyForce(playerBody, playerBody.position, { x: moveForce, y: 0 });
             }
             if ((keys['ArrowUp'] || keys['KeyW'] || keys['Space'])) {
-                Matter.Body.applyForce(playerLeg, playerLeg.position, {x: kickForce, y: -kickForce});
-                 Matter.Body.applyForce(playerBody, playerBody.position, {x: 0, y: -0.05 * bodyMass});
+                // Apply a vertical force for a short jump
+                Matter.Body.applyForce(playerBody, playerBody.position, {x: 0, y: -0.05 * bodyMass});
+                // Apply a small torque to the leg for the "kick" effect
+                playerLeg.torque = kickForce * 10;
             }
         });
 
